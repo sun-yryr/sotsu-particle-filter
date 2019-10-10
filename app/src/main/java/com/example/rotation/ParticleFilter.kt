@@ -5,7 +5,7 @@ import kotlin.random.Random
 
 class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
     private var x_resampled = generate_random_particles(particle_count)     // パーティクルの集合
-    private var likelihoods_normed = FloatArray(particle_count)                             // 尤度(indexはx_resampledに遵守)
+    private var likelihoods_normed = DoubleArray(particle_count)                             // 尤度(indexはx_resampledに遵守)
     private var alpha = alpha                                                          // パラメータ(平均)?
     private var sigma = sigma                                                          // パラメータ(分散)?
     private val particle_count = particle_count                                        // パーティクルの数
@@ -107,17 +107,48 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
 
     /**
      * 尤度の合成をする。（足し算して正規化）
-     * @param likelihoods Array<DoubleArray> 尤度の配列
+     * @param likelihood [DoubleArray] 尤度。個数分作る
      * @return [DoubleArray] 合成後の尤度
      */
-    private fun synthesize_likelihood(likelihoods: Array<DoubleArray>): DoubleArray {
+    private fun synthesize_likelihood(likelihood_1: DoubleArray, likelihood_2: DoubleArray): DoubleArray {
         var sum = 0.0;
         var normalization_likelihood = DoubleArray(particle_count)
-        for (likelihood in likelihoods) {
-            // item == 尤度[particlu_count]
-            for (i in likelihood.indices) {
-                sum += likelihood[i]
+        // likelihood == 尤度[particlu_count]
+        for (i in likelihood_1.indices) {
+            sum += likelihood_1[i]
+            normalization_likelihood[i] += likelihood_1[i]
+            sum += likelihood_2[i]
+            normalization_likelihood[i] += likelihood_2[i]
+        }
+        for (i in normalization_likelihood.indices) {
+            normalization_likelihood[i] /= sum
+        }
+        return normalization_likelihood
+    }
+
+    /**
+     * リサンプリングする。
+     * @param x [DoubleArray] パーティクルたち
+     * @param likelihood [DoubleArray] 尤度
+     */
+    private fun resampling(x: Array<DoubleArray>, likelihood: DoubleArray) {
+        var max_likelihood = 0.0
+        /* [0, 1/partclue_count) の乱数を出す */
+        var rdm = Random.nextDouble()
+        rdm /= particle_count.toDouble()
+        var index = -1
+        for(i in x_resampled.indices) {
+            /* 乱数の位置になるまで尤度を足す */
+            while (max_likelihood < rdm) {
+                index += 1
+                max_likelihood += likelihood[index]
             }
+            /* 尤度のインデックスの x を resampled に保存する */
+            for (x_index in x[index].indices) {
+                x_resampled[i][x_index] = x[index][x_index]
+            }
+            /* 1/particlue_count を足して繰り返す */
+            rdm += (1/particle_count).toDouble()
         }
     }
 
@@ -167,6 +198,19 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
         return output
     }
 
+    /**
+     * 尤度が一番大きい index を返す
+     */
+    private fun find_max_index(likelihood: DoubleArray): Int {
+        var index = 0
+        for(i in likelihood.indices) {
+            if (likelihood[i] > likelihood[index]) {
+                index = i
+            }
+        }
+        return index
+    }
+
     /* ----------------------------------------------------------------------------------------------------- */
 
     /**
@@ -175,7 +219,7 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
      * @param input2 [FloatArray] 観測した世界座標軸加速度2
      * @return [FloatArray] パーティクルフィルタで出た世界座標軸加速度
      */
-    public fun run(input1: FloatArray, input2: FloatArray): FloatArray {
+    public fun run(input1: FloatArray, input2: FloatArray): List<Float> {
         /* 測定データを Double に変換する */
         val input1 = toDouble(input1)
         val input2 = toDouble(input2)
@@ -185,8 +229,11 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
         /* 尤度の計算をして，likelihood に保存しておく */
         var likelihood_1 = calcurate_likelihood(x, input1)
         var likelihood_2 = calcurate_likelihood(x, input2)
+        likelihoods_normed = synthesize_likelihood(likelihood_1, likelihood_2)
         /* リサンプリングして，x_resampled に保存しておく */
-
-        return nearest_particle
+        resampling(x, likelihoods_normed)
+        val index = find_max_index(likelihoods_normed)
+        val output = x[index].map { it.toFloat() }
+        return output
     }
 }

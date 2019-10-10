@@ -8,6 +8,7 @@ import android.hardware.SensorManager
 import android.opengl.Matrix
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import kotlin.properties.Delegates
 
 class MainActivity : AppCompatActivity(), SensorEventListener {
@@ -20,6 +21,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private val ALPHA = 0.8F
     private val MATRIX_SIZE = 16
     private val DIMENSION = 3
+
+    private var PF = ParticleFilter(100, 0, 1)
 
     /* 生の値たち */
     private var raw_acceleration_value = FloatArray(3)
@@ -90,8 +93,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         }
 
         if (!world_coordinate_acceleration1.isZero() && !world_coordinate_acceleration2.isZero()) {
-
-
+            val output = PF.run(world_coordinate_acceleration1, world_coordinate_acceleration2)
+            Log.d("TAG", "output: "+ output.joinToString(separator = ", "))
             for (i in 0..2) {
                 world_coordinate_acceleration1[i] = 0F
                 world_coordinate_acceleration2[i] = 0F
