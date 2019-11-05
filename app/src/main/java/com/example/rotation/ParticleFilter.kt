@@ -18,7 +18,7 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
      * @return Array<DoubleArray> 生成したパーティクル。FloatArrayのサイズは3で上からx,y,z
      */
     private fun generate_random_particles(n_particle: Int): Array<DoubleArray> {
-        var particle = Array(n_particle, {DoubleArray(3)})
+        var particle = Array(n_particle, {DoubleArray(6)})
         for (i in 0..n_particle-1) {
             val rdm = Random.nextInt((2 * 1e8 + 1).toInt())
             var rdm_double = rdm.toDouble() / 1e8   // 0 ... 2のランダムdouble
@@ -70,7 +70,7 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
         var x = Array(particle_count, {DoubleArray(6)})
         for (i in particle.indices) {
             for (j in 0..2) {
-                x[i][j] -= particle[i][j+3] * seconds
+                x[i][j] = particle[i][j] - particle[i][j+3] * seconds
                 x[i][j+3] = particle[i][j+3]
             }
         }
@@ -86,7 +86,7 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
      */
     private fun calcurate_likelihood_accelerate(particles: Array<DoubleArray>, measured_point: DoubleArray, param: Double = 1.0): DoubleArray {
         var gauss = {x: Double, y: Double, z: Double, dx: Double, dy: Double, dz: Double, s: Double ->
-            val left = 1.0/(2 * PI.pow(3) * s.pow(6))
+            val left = 1.0/(s.pow(6) * (2 * PI).pow(3))
             val x2 = (measured_point[0] - x).pow(2)
             val y2 = (measured_point[1] - y).pow(2)
             val z2 = (measured_point[2] - z).pow(2)
@@ -193,7 +193,7 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
         for (i in x_resampled.indices) {
             for (j in x_resampled[i].indices) {
                 val rdm = java.util.Random()
-                val noise = rdm.nextGaussian() / 10.0
+                val noise = rdm.nextGaussian()
                 x_resampled[i][j] += noise
             }
         }
@@ -274,8 +274,8 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
         /* パーティクルの速度分だけ移動させる（システムノイズの代わり）*/
         var x = move_particles(x_resampled)
         /* 尤度の計算をして，likelihood に保存しておく */
-        var likelihood_1 = calcurate_likelihood_accelerate(x, input1)
-        var likelihood_2 = calcurate_likelihood_accelerate(x, input2)
+        var likelihood_1 = calcurate_likelihood(x, input1)
+        var likelihood_2 = calcurate_likelihood(x, input2)
         likelihoods_normed = synthesize_likelihood(likelihood_1, likelihood_2)
         /* リサンプリングして，x_resampled に保存しておく */
         resampling(x, likelihoods_normed)
