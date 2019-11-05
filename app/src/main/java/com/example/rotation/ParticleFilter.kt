@@ -1,10 +1,11 @@
 package com.example.rotation
 
+import android.util.Log
 import kotlin.math.*
 import kotlin.random.Random
 
 class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
-    private var x_resampled = generate_random_particles(particle_count)     // パーティクルの集合
+    private var x_resampled = generate_random_particles_accelerate(particle_count)     // パーティクルの集合
     private var likelihoods_normed = DoubleArray(particle_count)                             // 尤度(indexはx_resampledに遵守)
     private var alpha = alpha                                                          // パラメータ(平均)?
     private var sigma = sigma                                                          // パラメータ(分散)?
@@ -74,6 +75,38 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
             }
         }
         return x
+    }
+
+
+    /**
+     * 6次元ガウス分布を使って尤度の計算をする。正規化済み
+     * @param particles Array<DoubleArray> 尤度を計算するパーティクルの集合
+     * @param measured_point [DoubleArray] 測定点
+     * @return [DoubleArray] 尤度
+     */
+    private fun calcurate_likelihood_accelerate(particles: Array<DoubleArray>, measured_point: DoubleArray, param: Double = 1.0): DoubleArray {
+        var gauss = {x: Double, y: Double, z: Double, dx: Double, dy: Double, dz: Double, s: Double ->
+            val left = 1.0/(2 * PI.pow(3) * s.pow(6))
+            val x2 = (measured_point[0] - x).pow(2)
+            val y2 = (measured_point[1] - y).pow(2)
+            val z2 = (measured_point[2] - z).pow(2)
+            val dx2 = (measured_point[3] - dx).pow(2)
+            val dy2 = (measured_point[4] - dy).pow(2)
+            val dz2 = (measured_point[5] - dz).pow(2)
+            val s2 = s.pow(2)
+            (left * exp(-((x2 + y2 + z2 + dx2 + dy2 + dz2) / (2.0 * s2))))
+        }
+        var likelihood = DoubleArray(particle_count)
+        var sum = 0.0
+        for (i in particles.indices) {
+            val tmp_particle = particles[i]
+            likelihood[i] = gauss(tmp_particle[0], tmp_particle[1], tmp_particle[2], tmp_particle[3], tmp_particle[4], tmp_particle[5], param)
+            sum += likelihood[i]
+        }
+        for (i in particles.indices) {
+            likelihood[i] /= sum
+        }
+        return likelihood
     }
 
 
@@ -152,6 +185,20 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
         }
     }
 
+    /**
+     * システムノイズ
+     * コンストラクタで与えた平均と分散をここで使う。ノイズがいい感じに付与されるようにしたい。
+     */
+    private fun systemNoise() {
+        for (i in x_resampled.indices) {
+            for (j in x_resampled[i].indices) {
+                val rdm = java.util.Random()
+                val noise = rdm.nextGaussian() / 10.0
+                x_resampled[i][j] += noise
+            }
+        }
+    }
+
 
     /**
      * 尤度っぽい計算をする。これはユークリッド距離が一番近いものを返す
@@ -227,11 +274,12 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
         /* パーティクルの速度分だけ移動させる（システムノイズの代わり）*/
         var x = move_particles(x_resampled)
         /* 尤度の計算をして，likelihood に保存しておく */
-        var likelihood_1 = calcurate_likelihood(x, input1)
-        var likelihood_2 = calcurate_likelihood(x, input2)
+        var likelihood_1 = calcurate_likelihood_accelerate(x, input1)
+        var likelihood_2 = calcurate_likelihood_accelerate(x, input2)
         likelihoods_normed = synthesize_likelihood(likelihood_1, likelihood_2)
         /* リサンプリングして，x_resampled に保存しておく */
         resampling(x, likelihoods_normed)
+        systemNoise()
         val index = find_max_index(likelihoods_normed)
         val output = x[index].map { it.toFloat() }
         return output
