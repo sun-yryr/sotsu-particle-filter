@@ -20,16 +20,12 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
     private fun generate_random_particles(n_particle: Int): Array<DoubleArray> {
         var particle = Array(n_particle, {DoubleArray(3)})
         for (i in 0..n_particle-1) {
-            val rdm = Random.nextInt((2 * 1e8 + 1).toInt())
-            var rdm_double = rdm.toDouble() / 1e8   // 0 ... 2のランダムdouble
-            rdm_double -= 1.0                               // -1 ... 1のランダムdouble
-            val phi = Math.toRadians(Random.nextInt(360 + 1).toDouble())    // 0 ~ 360度のランダム -> ラジアン
-            val x = (sqrt(1 - rdm_double.pow(2)) * Math.cos(phi))
-            val y = (sqrt(1 - rdm_double.pow(2)) * Math.sin(phi))
-            val z = rdm_double
-            particle[i][0] = x
-            particle[i][1] = y
-            particle[i][2] = z
+            for (j in particle[i].indices) {
+                val rdm = Random.nextInt((2 * 1e8 + 1).toInt())
+                var rdm_double = rdm.toDouble() / 1e8   // 0 ... 2のランダムdouble
+                rdm_double -= 1.0                               // -1 ... 1のランダムdouble
+                particle[i][j] = rdm_double
+            }
         }
         return particle
     }
