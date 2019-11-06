@@ -274,14 +274,29 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
         /* パーティクルの速度分だけ移動させる（システムノイズの代わり）*/
         var x = move_particles(x_resampled)
         /* 尤度の計算をして，likelihood に保存しておく */
-        var likelihood_1 = calcurate_likelihood(x, input1)
-        var likelihood_2 = calcurate_likelihood(x, input2)
+        var likelihood_1 = calcurate_likelihood_accelerate(x, input1)
+        var likelihood_2 = calcurate_likelihood_accelerate(x, input2)
         likelihoods_normed = synthesize_likelihood(likelihood_1, likelihood_2)
         /* リサンプリングして，x_resampled に保存しておく */
-        resampling(x, likelihoods_normed)
-        systemNoise()
+        //resampling(x, likelihoods_normed)
+        //systemNoise()
+        for (i in x.indices) {
+            for (j in x[i].indices) {
+                x_resampled[i][j] = x[i][j]
+            }
+        }
         val index = find_max_index(likelihoods_normed)
         val output = x[index].map { it.toFloat() }
         return output
+    }
+
+    /**
+     * デバッグ用
+     */
+    public fun DEBUG_particleData(): Array<DoubleArray> {
+        return x_resampled
+    }
+    public fun DEBUG_likelihood(): DoubleArray {
+        return likelihoods_normed
     }
 }
