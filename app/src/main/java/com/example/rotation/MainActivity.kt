@@ -123,7 +123,7 @@ class MainActivity : AppCompatActivity()/*, SensorEventListener*/ {
                 applicationContext.openFileOutput(FileName, Context.MODE_APPEND).use {
                     it.write(outputString.toByteArray())
                     for (i in outputParticle.indices) {
-                        val o = outputlikelihood[i].toString() + ",," + outputParticle[i].joinToString(",") + "\n"
+                        val o = outputParticle[i].joinToString(",") + "\n"
                         it.write(o.toByteArray())
                     }
                 }
