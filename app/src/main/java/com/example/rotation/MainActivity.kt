@@ -49,6 +49,7 @@ class MainActivity : AppCompatActivity()/*, SensorEventListener*/ {
         val inputstream = resources.openRawResource(R.raw.acc)
         var secTime = 0.02
         val FileName = "output.csv"
+        var isFirst = true
         Log.d("log", "Calculate Start")
         applicationContext.openFileOutput(FileName, Context.MODE_PRIVATE).use { it.write("".toByteArray()) }
         inputstream.bufferedReader().useLines { it.forEach { line: String ->
@@ -65,10 +66,11 @@ class MainActivity : AppCompatActivity()/*, SensorEventListener*/ {
                 SensorManager.AXIS_X,
                 SensorManager.AXIS_Y
             )
-            if (R.isZero()) {
+            if (R.isZero() || !isFirst) {
                 secTime += 0.02
             } else {
                 secTime = 0.02
+                isFirst = false
 
                 var acc_linear_value = FloatArray(4)
                 for (i in 0..2) {
@@ -114,10 +116,16 @@ class MainActivity : AppCompatActivity()/*, SensorEventListener*/ {
                 */
                 /* PartileFilterにとおす */
                 val output = PF.run(world_coordinate_acceleration1, world_coordinate_acceleration1)
-                val outputString = tmp[0] + "," + output.joinToString(",") + "\n"
+                val outputString = tmp[0] + "," + output.joinToString(",") + "," + world_coordinate_acceleration1.joinToString(",") + "\n\n"
+                val outputParticle = PF.debug_partilue()
+                val outputlikelihood = PF.debug_likelihood()
                 /* ファイルに書き出したいな */
                 applicationContext.openFileOutput(FileName, Context.MODE_APPEND).use {
                     it.write(outputString.toByteArray())
+                    for (i in outputParticle.indices) {
+                        val o = outputlikelihood[i].toString() + ",," + outputParticle[i].joinToString(",") + "\n"
+                        it.write(o.toByteArray())
+                    }
                 }
             }
         } }

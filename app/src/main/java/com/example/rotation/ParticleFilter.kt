@@ -5,7 +5,7 @@ import kotlin.math.*
 import kotlin.random.Random
 
 class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
-    private var x_resampled = generate_random_particles_accelerate(particle_count)     // パーティクルの集合
+    private var x_resampled = generate_random_particles(particle_count)     // パーティクルの集合
     private var likelihoods_normed = DoubleArray(particle_count)                             // 尤度(indexはx_resampledに遵守)
     private var alpha = alpha                                                          // パラメータ(平均)?
     private var sigma = sigma                                                          // パラメータ(分散)?
@@ -67,11 +67,10 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
      * @return Array<DoubleArray> 移動したパーティクルの集合
      */
     private fun move_particles(particle: Array<DoubleArray>, seconds: Int = 1): Array<DoubleArray> {
-        var x = Array(particle_count, {DoubleArray(6)})
+        var x = Array(particle_count, {DoubleArray(3)})
         for (i in particle.indices) {
             for (j in 0..2) {
-                x[i][j] -= particle[i][j+3] * seconds
-                x[i][j+3] = particle[i][j+3]
+                x[i][j] = particle[i][j]
             }
         }
         return x
@@ -274,14 +273,21 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
         /* パーティクルの速度分だけ移動させる（システムノイズの代わり）*/
         var x = move_particles(x_resampled)
         /* 尤度の計算をして，likelihood に保存しておく */
-        var likelihood_1 = calcurate_likelihood_accelerate(x, input1)
-        var likelihood_2 = calcurate_likelihood_accelerate(x, input2)
+        var likelihood_1 = calcurate_likelihood(x, input1)
+        var likelihood_2 = calcurate_likelihood(x, input2)
         likelihoods_normed = synthesize_likelihood(likelihood_1, likelihood_2)
         /* リサンプリングして，x_resampled に保存しておく */
-        resampling(x, likelihoods_normed)
-        systemNoise()
+        //resampling(x, likelihoods_normed)
+        //systemNoise()
         val index = find_max_index(likelihoods_normed)
         val output = x[index].map { it.toFloat() }
         return output
+    }
+
+    public fun debug_partilue(): Array<DoubleArray> {
+        return x_resampled
+    }
+    public fun debug_likelihood(): DoubleArray {
+        return likelihoods_normed
     }
 }
