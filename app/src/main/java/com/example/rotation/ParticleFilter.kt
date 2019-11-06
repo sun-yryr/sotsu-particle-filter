@@ -43,18 +43,11 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
     private fun generate_random_particles_accelerate(n_particle: Int): Array<DoubleArray> {
         var particles = Array(n_particle, {DoubleArray(6)})
         for (i in 0..n_particle-1) {
-            for (p in 0..1) {
+            for (p in particles[i].indices) {
                 val rdm = Random.nextInt((2 * 1e8 + 1).toInt())
                 var rdm_double = rdm.toDouble() / 1e8   // 0 ... 2のランダムdouble
                 rdm_double -= 1.0                               // -1 ... 1のランダムdouble
-                val phi = Math.toRadians(Random.nextInt(360 + 1).toDouble())    // 0 ~ 360度のランダム -> ラジアン
-                val x = (sqrt(1 - rdm_double.pow(2)) * Math.cos(phi))
-                val y = (sqrt(1 - rdm_double.pow(2)) * Math.sin(phi))
-                val z = rdm_double
-                val index = 3 * p
-                particles[i][0 + index] = x
-                particles[i][1 + index] = y
-                particles[i][2 + index] = z
+                particles[i][p] = rdm_double
             }
         }
         return particles
@@ -165,23 +158,25 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
      * @param likelihood [DoubleArray] 尤度
      */
     private fun resampling(x: Array<DoubleArray>, likelihood: DoubleArray) {
+        // 累積和
+        var cumulative_sum = DoubleArray(likelihood.size)
+        cumulative_sum[0] = likelihood[0]
+        for (i in 1..(particle_count-1)) {
+            cumulative_sum[i] = cumulative_sum[i-1] + likelihood[i]
+        }
         var max_likelihood = 0.0
         /* [0, 1/partclue_count) の乱数を出す */
         var rdm = Random.nextDouble()
         rdm /= particle_count.toDouble()
-        var index = -1
-        for(i in x_resampled.indices) {
-            /* 乱数の位置になるまで尤度を足す */
-            while (max_likelihood < rdm) {
-                index += 1
-                max_likelihood += likelihood[index]
+        for (i in x_resampled.indices) {
+            // 累積[index] < rdm <= 累積[index+1]となるindexを探したい
+            val index = find_index_from_cumulative_sum(cumulative_sum, rdm)
+            // 代入している
+            // いい感じのディープコピーの方法を探す
+            for (p in x[index].indices) {
+                x_resampled[i][p] = x[index][p]
             }
-            /* 尤度のインデックスの x を resampled に保存する */
-            for (x_index in x[index].indices) {
-                x_resampled[i][x_index] = x[index][x_index]
-            }
-            /* 1/particlue_count を足して繰り返す */
-            rdm += (1/particle_count).toDouble()
+            rdm += 1.0/particle_count.toDouble()
         }
     }
 
@@ -193,7 +188,7 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
         for (i in x_resampled.indices) {
             for (j in x_resampled[i].indices) {
                 val rdm = java.util.Random()
-                val noise = rdm.nextGaussian()
+                val noise = rdm.nextGaussian() / 100.0
                 x_resampled[i][j] += noise
             }
         }
@@ -258,6 +253,15 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
         return index
     }
 
+    private fun find_index_from_cumulative_sum(cumulative_sum: DoubleArray, rdm: Double): Int {
+        for (i in cumulative_sum.indices) {
+            if (cumulative_sum[i] > rdm) {
+                return i
+            }
+        }
+        return cumulative_sum.size-1
+    }
+
     /* ----------------------------------------------------------------------------------------------------- */
 
     /**
@@ -271,20 +275,15 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
         val input1 = toDouble(input1)
         val input2 = toDouble(input2)
         /* resampled にシステムノイズを足して x を生成する */
-        /* パーティクルの速度分だけ移動させる（システムノイズの代わり）*/
+        /* パーティクルの速度分だけ移動させる */
         var x = move_particles(x_resampled)
         /* 尤度の計算をして，likelihood に保存しておく */
         var likelihood_1 = calcurate_likelihood_accelerate(x, input1)
         var likelihood_2 = calcurate_likelihood_accelerate(x, input2)
         likelihoods_normed = synthesize_likelihood(likelihood_1, likelihood_2)
         /* リサンプリングして，x_resampled に保存しておく */
-        //resampling(x, likelihoods_normed)
-        //systemNoise()
-        for (i in x.indices) {
-            for (j in x[i].indices) {
-                x_resampled[i][j] = x[i][j]
-            }
-        }
+        resampling(x, likelihoods_normed)
+        systemNoise()
         val index = find_max_index(likelihoods_normed)
         val output = x[index].map { it.toFloat() }
         return output
