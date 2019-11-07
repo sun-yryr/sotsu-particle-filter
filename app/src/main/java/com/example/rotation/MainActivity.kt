@@ -115,15 +115,16 @@ class MainActivity : AppCompatActivity()/*, SensorEventListener*/ {
                 }
                 */
                 /* PartileFilterにとおす */
+                val initParticle = PF.debug_partilue()
                 val output = PF.run(world_coordinate_acceleration1, world_coordinate_acceleration1)
                 val outputString = tmp[0] + "," + output.joinToString(",") + "," + world_coordinate_acceleration1.joinToString(",") + "\n\n"
-                val outputParticle = PF.debug_partilue()
+                val resamplingParticle = PF.debug_partilue()
                 val outputlikelihood = PF.debug_likelihood()
                 /* ファイルに書き出したいな */
                 applicationContext.openFileOutput(FileName, Context.MODE_APPEND).use {
                     it.write(outputString.toByteArray())
-                    for (i in outputParticle.indices) {
-                        val o = outputParticle[i].joinToString(",") + "\n"
+                    for (i in resamplingParticle.indices) {
+                        val o = outputlikelihood[i].toString() + ",," + initParticle[i].joinToString(",") + ",," + resamplingParticle[i].joinToString(",") + "\n"
                         it.write(o.toByteArray())
                     }
                 }

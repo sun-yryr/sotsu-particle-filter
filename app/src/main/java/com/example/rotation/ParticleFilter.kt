@@ -170,6 +170,7 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
         /* [0, 1/partclue_count) の乱数を出す */
         var rdm = Random.nextDouble()
         rdm /= particle_count.toDouble()
+        Log.d("tag", "rdm : " + rdm.toString())
         for (i in 0..particle_count-1) {
             // 累積[index] < rdm <= 累積[index+1]となるindexを探したい
             val index = find_index_from_cumulative_sum(cumulative_sum, rdm)
@@ -258,7 +259,7 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
     private fun find_index_from_cumulative_sum(cumulative_sum: DoubleArray, rdm: Double): Int {
         for (i in cumulative_sum.indices) {
             if (cumulative_sum[i] > rdm) {
-                return i-1
+                return i
             }
         }
         return cumulative_sum.size-1
@@ -292,7 +293,13 @@ class ParticleFilter(particle_count: Int, alpha: Int, sigma: Int) {
     }
 
     public fun debug_partilue(): Array<DoubleArray> {
-        return x_resampled
+        var x = Array(particle_count, {DoubleArray(3)})
+        for (i in x.indices) {
+            for (j in x[i].indices) {
+                x[i][j] = x_resampled[i][j]
+            }
+        }
+        return x
     }
     public fun debug_likelihood(): DoubleArray {
         return likelihoods_normed
